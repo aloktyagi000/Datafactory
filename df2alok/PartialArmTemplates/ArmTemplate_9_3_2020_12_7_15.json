@@ -1,0 +1,68 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "df2alok"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "Filescsv",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						},
+						{
+							"dataset": {
+								"referenceName": "DelimitedText2",
+								"type": "DatasetReference"
+							},
+							"name": "source2"
+						},
+						{
+							"dataset": {
+								"referenceName": "AzureSqlTable1",
+								"type": "DatasetReference"
+							},
+							"name": "mysource"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DelimitedText3",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						}
+					],
+					"transformations": [
+						{
+							"name": "Join1"
+						},
+						{
+							"name": "Select1"
+						}
+					],
+					"script": "source(output(\n\t\tColumn_1 as string,\n\t\tColumn_2 as string,\n\t\tColumn_3 as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> source1\nsource(output(\n\t\tColumn_1 as string,\n\t\tColumn_2 as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> source2\nsource(output(\n\t\trecipe_id as integer,\n\t\trecipe_name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> mysource\nsource1, source2 join(Column_3 == source2@Column_1,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> Join1\nJoin1 select(mapColumn(\n\t\tEmpID = source1@Column_1,\n\t\tEmpName = source1@Column_2,\n\t\tDepID = Column_3,\n\t\tColumn_1 = source2@Column_1,\n\t\tDepName = source2@Column_2\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nSelect1 sink(input(\n\t\tColumn_1 as string,\n\t\tColumn_2 as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['joinedfile'],\n\tmapColumn(\n\t\tEmpID,\n\t\tEmpName,\n\t\tDepID,\n\t\tDepName\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> sink1"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
